@@ -1,0 +1,104 @@
+service: Dynamo-python
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.9
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - !GetAtt UsersTable.Arn
+        - !GetAtt ManagersTable.Arn
+  environment:
+    USERS_TABLE: users-table-dev
+    MANAGERS_TABLE: managers-table-${sls:stage}
+
+functions:
+  create_user:
+    handler: handler.create_user
+    events:
+      - http:
+          path: /create_user
+          method: post
+  get_users:
+    handler: handler.get_users
+    events:
+      - http:
+          path: /get_users
+          method: post
+  delete_user:
+    handler: handler.delete_user
+    events:
+      - http:
+          path: /delete_user
+          method: post
+  update_user:
+    handler: handler.update_user
+    events:
+      - http:
+          path: /update_user
+          method: post
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: is_active
+            AttributeType: N
+          - AttributeName: mob_num
+            AttributeType: S
+          - AttributeName: manager_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: is_active
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: users-table-${sls:stage}
+        GlobalSecondaryIndexes:
+          - IndexName: mob_num-index
+            KeySchema:
+              - AttributeName: mob_num
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+          - IndexName: manager_id-index
+            KeySchema:
+              - AttributeName: manager_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+    ManagersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: managerId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: managerId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: managers-table-${sls:stage}
