@@ -197,7 +197,115 @@ def delete_user(event, context):
             })
         }
 
-    # /update_user
-    def update_user(event, context):
-        # Implementation based on the task requirements
-        pass
+def update_user(event, context):
+    """Update users based on user_ids and update_data."""
+    try:
+        body = json.loads(event.get('body'))
+        user_ids = body.get('user_ids')
+        update_data = body.get('update_data')
+
+        if not user_ids or not update_data:
+            return {
+                'statusCode': HTTPStatus.BAD_REQUEST,
+                'body': json.dumps({
+                    "status": "Failed",
+                    "error": "Both user_ids and update_data are required."
+                })
+            }
+
+        if len(user_ids) != len(update_data):
+            return {
+                'statusCode': HTTPStatus.BAD_REQUEST,
+                'body': json.dumps({
+                    "status": "Failed",
+                    "error": "The number of user_ids and update_data items should be the same."
+                })
+            }
+
+        for user_id in user_ids:
+            user_update_data = update_data.get(user_id)
+
+            if not user_update_data:
+                continue
+
+            full_name = user_update_data.get('full_name', '').strip()
+            mob_num = user_update_data.get('mob_num', '').strip()
+            mob_num = re.sub(r'^0|^\+91', '', mob_num)
+            pan_num = user_update_data.get('pan_num', '').strip().upper()
+            manager_id = user_update_data.get('manager_id')
+            is_active = user_update_data.get('is_active')
+
+            if mob_num and not is_valid_mobile_number(mob_num):
+                return {
+                    'statusCode': HTTPStatus.BAD_REQUEST,
+                    'body': json.dumps({
+                        "status": "Failed",
+                        "error": "Invalid mobile number."
+                    })
+                }
+
+            if pan_num and not is_valid_pan_number(pan_num):
+                return {
+                    'statusCode': HTTPStatus.BAD_REQUEST,
+                    'body': json.dumps({
+                        "status": "Failed",
+                        "error": "Invalid PAN number."
+                        })
+                        }
+            update_expression = 'SET '
+            expression_attribute_names = {}
+            expression_attribute_values = {}
+
+            if full_name:
+                update_expression += '#fn = :fn, '
+                expression_attribute_names['#fn'] = 'full_name'
+                expression_attribute_values[':fn'] = full_name
+
+            if mob_num:
+                update_expression += '#mn = :mn, '
+                expression_attribute_names['#mn'] = 'mob_num'
+                expression_attribute_values[':mn'] = mob_num
+
+            if pan_num:
+                update_expression += '#pn = :pn, '
+                expression_attribute_names['#pn'] = 'pan_num'
+                expression_attribute_values[':pn'] = pan_num
+
+            if manager_id is not None:
+                update_expression += '#mid = :mid, '
+                expression_attribute_names['#mid'] = 'manager_id'
+                expression_attribute_values[':mid'] = manager_id
+
+            if is_active is not None:
+                update_expression += '#ia = :ia, '
+                expression_attribute_names['#ia'] = 'is_active'
+                expression_attribute_values[':ia'] = is_active
+
+            update_expression = update_expression.rstrip(', ')
+
+            user_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values
+            )
+
+        return {
+            'statusCode': HTTPStatus.OK,
+            'body': json.dumps({
+                "status": "Success",
+                "message": "Users updated successfully."
+            })
+        }
+
+    except Exception as e:
+        print(f'Error: {e}')
+        return {
+            'statusCode': HTTPStatus.INTERNAL_SERVER_ERROR,
+            'body': json.dumps({
+                "status": "Failed",
+                "error": "An error occurred while updating users."
+            })
+        }
+
+
