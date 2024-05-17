@@ -1,5 +1,3 @@
-
-```markdown
 # Distributed User Registry with DynamoDB
 
 This project is a serverless AWS Lambda function that provides a RESTful API for managing user data in an Amazon DynamoDB table. The API supports creating, retrieving, updating, and deleting users.
